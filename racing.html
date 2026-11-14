@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>ซิ่งทะลุไฮเวย์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&display=swap">
+<style>
+:root{
+  --sky:#e9f6ff; --ink:#14213d; --muted:#5a6b85; --accent:#ff5a1f; --gold:#ffc300; --panel:#ffffff; --line:#d6e4f0;
+  --font:"Kanit","Leelawadee UI",Tahoma,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--sky);color:var(--ink);font-family:var(--font);overscroll-behavior:none}
+body{display:flex;flex-direction:column;align-items:center;
+  padding:max(10px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(10px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));gap:8px}
+header{width:100%;max-width:460px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{margin:0;font-size:1.25rem;font-weight:800;letter-spacing:.3px}
+h1 span{color:var(--accent)}
+.hud{width:100%;max-width:460px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.hud div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px 8px;text-align:center;font-variant-numeric:tabular-nums}
+.hud small{display:block;font-size:.7rem;color:var(--muted);line-height:1.1}
+.hud b{font-size:1.05rem}
+.stage{position:relative;width:100%;max-width:460px;flex:1;min-height:0;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(20,33,61,.18);touch-action:none}
+canvas{display:block;width:100%;height:100%}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px;background:rgba(255,255,255,.88)}
+.overlay h2{margin:0;font-size:2rem;font-weight:800;line-height:1.1}
+.overlay p{margin:0;color:var(--muted);max-width:300px}
+.btn{font:inherit;font-weight:600;font-size:1.1rem;border:0;border-radius:12px;padding:10px 28px;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 4px 0 #c43d0c}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #c43d0c}
+.btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.small-btn{font:inherit;font-size:.85rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer}
+.keys{font-size:.85rem;color:var(--muted);line-height:1.6}
+kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-family:inherit}
+.pads{width:100%;max-width:460px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.pad{font:inherit;font-size:1.4rem;font-weight:800;height:58px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+.pad.nitro{background:#fff4cc;border-color:#f3cf5a}
+.pad.on{background:var(--ink);color:#fff}
+@media (hover:hover) and (pointer:fine){.pads{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>ซิ่งทะลุ<span>ไฮเวย์</span></h1>
+  <button class="small-btn" id="pauseBtn" aria-label="หยุดชั่วคราว">⏸ พัก</button>
+</header>
+
+<div class="hud" aria-live="polite">
+  <div><small>ระยะทาง</small><b id="hDist">0.00</b><small>กม.</small></div>
+  <div><small>ความเร็ว</small><b id="hSpeed">0</b><small>กม./ชม.</small></div>
+  <div><small>เหรียญ</small><b id="hCoins">0</b><small>&nbsp;</small></div>
+  <div><small>ชีวิต</small><b id="hLives">❤❤❤</b><small id="hNitro">ไนโตร 0</small></div>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="menu">
+    <h2>ซิ่งทะลุ<br>ไฮเวย์</h2>
+    <p>หลบรถบนถนน เก็บเหรียญ เก็บถังไนโตรไว้เร่งแรง วิ่งให้ไกลที่สุด</p>
+    <button class="btn" id="startBtn">เริ่มแข่ง</button>
+    <div class="keys">
+      คอม: <kbd>←</kbd><kbd>→</kbd> เลี้ยว · <kbd>↑</kbd> เร่ง · <kbd>↓</kbd> เบรก · <kbd>Space</kbd> ไนโตร · <kbd>P</kbd> พัก<br>
+      มือถือ: ใช้ปุ่มด้านล่างจอ
+    </div>
+    <p id="bestTxt"></p>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <h2 id="overTitle">ชนแล้ว!</h2>
+    <p id="overTxt"></p>
+    <button class="btn" id="againBtn">แข่งอีกรอบ</button>
+  </div>
+  <div class="overlay" id="paused" hidden>
+    <h2>พักก่อน</h2>
+    <button class="btn" id="resumeBtn">ไปต่อ</button>
+  </div>
+</div>
+
+<div class="pads">
+  <button class="pad" data-k="left" aria-label="เลี้ยวซ้าย">◀</button>
+  <button class="pad nitro" data-k="nitro" aria-label="ไนโตร">🔥</button>
+  <button class="pad" data-k="right" aria-label="เลี้ยวขวา">▶</button>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const stage = document.getElementById('stage');
+  const $ = id => document.getElementById(id);
+  let W = 360, H = 640, DPR = 1;
+
+  // ---------- world ----------
+  const LANES = 4;
+  let road = {}; // x, w, laneW
+  function layout() {
+    const r = stage.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(240, r.width); H = Math.max(320, r.height);
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const rw = Math.min(W * 0.78, 380);
+    road = { x: (W - rw) / 2, w: rw, laneW: rw / LANES };
+    car.w = road.laneW * 0.56; car.h = car.w * 1.8;
+    car.y = H - car.h - 24;
+    if (!car.x) car.x = W / 2;
+  }
+
+  const car = { x: 0, y: 0, w: 40, h: 72, vx: 0, tilt: 0 };
+  let traffic = [], items = [], sparks = [], trees = [];
+  let state = 'menu', speed = 0, dist = 0, coins = 0, lives = 3, nitro = 0, boostT = 0, invT = 0, spawnT = 0, itemT = 0, scroll = 0, shake = 0, t = 0;
+  const keys = { left: false, right: false, up: false, down: false, nitro: false };
+  let best = 0; try { best = Number(localStorage.getItem('race-best') || 0); } catch (e) {}
+
+  const COLORS = ['#3a86ff', '#8338ec', '#06d6a0', '#ef476f', '#ffd166', '#118ab2', '#f15bb5', '#2ec4b6'];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const laneX = i => road.x + road.laneW * (i + 0.5);
+
+  function reset() {
+    traffic = []; items = []; sparks = [];
+    speed = 260; dist = 0; coins = 0; lives = 3; nitro = 1; boostT = 0; invT = 1.2; spawnT = 0.6; itemT = 2; shake = 0;
+    car.x = W / 2; car.vx = 0;
+    trees = [];
+    for (let y = -40; y < H + 80; y += 70) addTree(y);
+  }
+  function addTree(y) {
+    const side = Math.random() < 0.5 ? 0 : 1;
+    const margin = road.x;
+    if (margin < 18) return;
+    const x = side ? rand(road.x + road.w + 10, W - 8) : rand(8, road.x - 10);
+    trees.push({ x, y, r: rand(9, 16), k: Math.random() < 0.25 ? 'rock' : 'tree' });
+  }
+
+  // ---------- spawning ----------
+  function difficulty() { return Math.min(1, dist / 6); } // ramps over the first 6 km
+  function spawnCar() {
+    const lane = Math.floor(Math.random() * LANES);
+    const w = road.laneW * rand(0.5, 0.6), truck = Math.random() < 0.18;
+    const h = truck ? w * 2.6 : w * 1.8;
+    const y = -h - 10;
+    if (traffic.some(o => o.lane === lane && o.y < h + 40)) return;
+    // never block every lane at once near the top
+    const busy = new Set(traffic.filter(o => o.y < 120).map(o => o.lane)); busy.add(lane);
+    if (busy.size >= LANES) return;
+    traffic.push({ lane, x: laneX(lane), y, w, h, truck, v: rand(90, 170) * (truck ? 0.8 : 1), color: COLORS[(Math.random() * COLORS.length) | 0], hit: false });
+  }
+  function spawnItem() {
+    const lane = Math.floor(Math.random() * LANES);
+    if (traffic.some(o => o.lane === lane && o.y < 80)) return;
+    const kind = Math.random() < 0.18 ? 'nitro' : 'coin';
+    if (kind === 'coin') for (let i = 0; i < 4; i++) items.push({ kind, x: laneX(lane), y: -30 - i * 46, r: 10 });
+    else items.push({ kind, x: laneX(lane), y: -30, r: 14 });
+  }
+
+  // ---------- update ----------
+  function update(dt) {
+    t += dt;
+    const d = difficulty();
+    const base = 260 + d * 220;
+    let target = base + (keys.up ? 120 : 0) - (keys.down ? 160 : 0);
+    if (keys.nitro && nitro > 0 && boostT <= 0) { nitro--; boostT = 2.6; keys.nitro = false; burst(car.x, car.y + car.h, '#ffb703', 14); }
+    keys.nitro = false;
+    if (boostT > 0) { boostT -= dt; target += 280; }
+    speed += (target - speed) * Math.min(1, dt * 2.2);
+
+    // steering: smooth, with a little drift
+    const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    car.vx += steer * 2200 * dt; car.vx *= Math.pow(0.0009, dt);
+    car.x += car.vx * dt;
+    const minX = road.x + car.w / 2 + 2, maxX = road.x + road.w - car.w / 2 - 2;
+    if (car.x < minX) { car.x = minX; car.vx = 0; }
+    if (car.x > maxX) { car.x = maxX; car.vx = 0; }
+    car.tilt = car.vx / 1600;
+
+    const dy = speed * dt;
+    scroll = (scroll + dy) % 80;
+    dist += speed * dt / 3600 * 0.9; // 'km' tuned for feel
+    invT = Math.max(0, invT - dt); shake = Math.max(0, shake - dt * 30);
+
+    // scenery
+    trees.forEach(tr => tr.y += dy);
+    trees = trees.filter(tr => tr.y < H + 40);
+    if (!trees.length || trees[trees.length - 1].y > 30) addTree(-30);
+
+    // traffic
+    spawnT -= dt;
+    if (spawnT <= 0) { spawnCar(); spawnT = rand(0.45, 1.0) * (1.25 - d * 0.6) * (300 / Math.max(200, speed)); }
+    traffic.forEach(o => { o.y += (speed - o.v) * dt; });
+    traffic = traffic.filter(o => o.y < H + 200 && o.y > -900);
+
+    // items
+    itemT -= dt;
+    if (itemT <= 0) { spawnItem(); itemT = rand(1.4, 2.8); }
+    items.forEach(it => it.y += dy);
+    items = items.filter(it => !it.taken && it.y < H + 40);
+
+    // collisions
+    const cx = car.x - car.w / 2 + 3, cy = car.y + 4, cw = car.w - 6, ch = car.h - 8;
+    for (const o of traffic) {
+      if (o.hit) continue;
+      const ox = o.x - o.w / 2, oy = o.y;
+      if (cx < ox + o.w && cx + cw > ox && cy < oy + o.h && cy + ch > oy) {
+        if (boostT > 0) { o.hit = true; o.y -= 40; burst(o.x, o.y + o.h / 2, o.color, 18); coins += 2; continue; }
+        if (invT > 0) continue;
+        lives--; invT = 1.8; shake = 10; speed *= 0.45; o.hit = true;
+        burst(car.x, car.y, '#ff5a1f', 24);
+        if (lives <= 0) return gameOver();
+      }
+    }
+    for (const it of items) {
+      if (Math.abs(it.x - car.x) < car.w / 2 + it.r && it.y > car.y - it.r && it.y < car.y + car.h + it.r) {
+        it.taken = true;
+        if (it.kind === 'coin') { coins++; burst(it.x, it.y, '#ffc300', 6); }
+        else { nitro = Math.min(3, nitro + 1); burst(it.x, it.y, '#3a86ff', 10); }
+      }
+    }
+    sparks.forEach(s => { s.x += s.vx * dt; s.y += s.vy * dt + dy * 0.6; s.life -= dt; });
+    sparks = sparks.filter(s => s.life > 0);
+
+    if (boostT > 0 && Math.random() < 0.8) sparks.push({ x: car.x + rand(-car.w / 4, car.w / 4), y: car.y + car.h, vx: rand(-30, 30), vy: rand(80, 160), life: 0.35, c: Math.random() < 0.5 ? '#ffb703' : '#fb5607', r: rand(2, 4) });
+  }
+  function burst(x, y, c, n) { for (let i = 0; i < n; i++) sparks.push({ x, y, vx: rand(-160, 160), vy: rand(-160, 120), life: rand(0.3, 0.7), c, r: rand(2, 4) }); }
+
+  // ---------- draw ----------
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function drawCar(x, y, w, h, color, opts = {}) {
+    ctx.save();
+    ctx.translate(x, y + h / 2);
+    if (opts.tilt) ctx.rotate(opts.tilt);
+    ctx.translate(0, -h / 2);
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; rr(-w / 2 + 3, 5, w, h, w * 0.25); ctx.fill();
+    // wheels
+    ctx.fillStyle = '#1b1b1b';
+    const ww = w * 0.16, wh = h * 0.18;
+    [[-w / 2 - ww * 0.3, h * 0.14], [w / 2 - ww * 0.7, h * 0.14], [-w / 2 - ww * 0.3, h * 0.68], [w / 2 - ww * 0.7, h * 0.68]].forEach(([wx, wy]) => { rr(wx, wy, ww, wh, 3); ctx.fill(); });
+    // body
+    ctx.fillStyle = color; rr(-w / 2, 0, w, h, w * 0.28); ctx.fill();
+    // stripe
+    if (opts.stripe) { ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(-w * 0.08, 2, w * 0.16, h - 4); }
+    // glass
+    ctx.fillStyle = 'rgba(20,33,61,.75)';
+    if (opts.truck) { rr(-w * 0.38, h * 0.04, w * 0.76, h * 0.16, 4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-w * 0.44, h * 0.26, w * 0.88, h * 0.7); }
+    else { rr(-w * 0.36, h * 0.22, w * 0.72, h * 0.2, 5); ctx.fill(); rr(-w * 0.32, h * 0.66, w * 0.64, h * 0.13, 4); ctx.fill(); }
+    // lights
+    ctx.fillStyle = opts.player ? '#fff6b0' : '#ff4d4d';
+    const ly = opts.player ? 2 : h - 6;
+    rr(-w * 0.42, ly, w * 0.22, 4, 2); ctx.fill(); rr(w * 0.2, ly, w * 0.22, 4, 2); ctx.fill();
+    ctx.restore();
+  }
+  function draw() {
+    ctx.save();
+    if (shake > 0) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+    // grass
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#8fdc6a'); g.addColorStop(1, '#6cc74c');
+    ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
+    // grass stripes
+    ctx.fillStyle = 'rgba(255,255,255,.08)';
+    for (let y = -80 + scroll; y < H; y += 80) ctx.fillRect(0, y, W, 40);
+    // scenery
+    for (const tr of trees) {
+      if (tr.k === 'rock') { ctx.fillStyle = '#9aa5b1'; ctx.beginPath(); ctx.ellipse(tr.x, tr.y, tr.r * 0.9, tr.r * 0.6, 0, 0, 7); ctx.fill(); }
+      else {
+        ctx.fillStyle = 'rgba(0,0,0,.15)'; ctx.beginPath(); ctx.arc(tr.x + 4, tr.y + 4, tr.r, 0, 7); ctx.fill();
+        ctx.fillStyle = '#2d9a4b'; ctx.beginPath(); ctx.arc(tr.x, tr.y, tr.r, 0, 7); ctx.fill();
+        ctx.fillStyle = '#4cc36a'; ctx.beginPath(); ctx.arc(tr.x - tr.r * 0.3, tr.y - tr.r * 0.3, tr.r * 0.55, 0, 7); ctx.fill();
+      }
+    }
+    // road + curbs
+    ctx.fillStyle = '#4a5260'; ctx.fillRect(road.x, -20, road.w, H + 40);
+    for (let y = -40 + (scroll % 40); y < H; y += 40) {
+      ctx.fillStyle = ((y - scroll) / 40 | 0) % 2 ? '#ffffff' : '#ff3b30';
+      ctx.fillRect(road.x - 8, y, 8, 20); ctx.fillRect(road.x + road.w, y, 8, 20);
+      ctx.fillStyle = ((y - scroll) / 40 | 0) % 2 ? '#ff3b30' : '#ffffff';
+      ctx.fillRect(road.x - 8, y + 20, 8, 20); ctx.fillRect(road.x + road.w, y + 20, 8, 20);
+    }
+    // lane marks
+    ctx.fillStyle = 'rgba(255,255,255,.85)';
+    for (let i = 1; i < LANES; i++) {
+      const x = road.x + road.laneW * i - 2;
+      for (let y = -80 + scroll; y < H; y += 80) ctx.fillRect(x, y, 4, 40);
+    }
+    // items
+    for (const it of items) {
+      if (it.kind === 'coin') {
+        const sq = Math.abs(Math.sin(t * 5 + it.y * 0.02));
+        ctx.fillStyle = '#e09f00'; ctx.beginPath(); ctx.ellipse(it.x, it.y, it.r * Math.max(0.25, sq), it.r, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#ffd60a'; ctx.beginPath(); ctx.ellipse(it.x, it.y, it.r * Math.max(0.2, sq) * 0.75, it.r * 0.75, 0, 0, 7); ctx.fill();
+      } else {
+        ctx.fillStyle = '#3a86ff'; rr(it.x - 11, it.y - 15, 22, 30, 6); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '700 15px Kanit, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('N', it.x, it.y + 1);
+      }
+    }
+    // traffic
+    for (const o of traffic) { ctx.globalAlpha = o.hit ? 0.45 : 1; drawCar(o.x, o.y, o.w, o.h, o.color, { truck: o.truck }); }
+    ctx.globalAlpha = 1;
+    // sparks
+    for (const s of sparks) { ctx.globalAlpha = Math.max(0, s.life * 2); ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // player
+    if (state !== 'menu') {
+      const blink = invT > 0 && Math.floor(t * 12) % 2 === 0;
+      if (!blink) {
+        if (boostT > 0) { ctx.fillStyle = 'rgba(255,183,3,.35)'; ctx.beginPath(); ctx.ellipse(car.x, car.y + car.h / 2, car.w, car.h * 0.75, 0, 0, 7); ctx.fill(); }
+        drawCar(car.x, car.y, car.w, car.h, '#ff5a1f', { player: true, stripe: true, tilt: car.tilt });
+      }
+    }
+    // speed lines while boosting
+    if (boostT > 0) {
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 10; i++) { const x = rand(0, W), y = rand(0, H); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + rand(30, 70)); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+
+  // ---------- hud ----------
+  function hud() {
+    $('hDist').textContent = dist.toFixed(2);
+    $('hSpeed').textContent = Math.round(speed * 0.45);
+    $('hCoins').textContent = coins;
+    $('hLives').textContent = '❤'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, 3 - lives));
+    $('hNitro').textContent = 'ไนโตร ' + nitro;
+  }
+  function score() { return Math.round(dist * 100 + coins * 10); }
+
+  // ---------- states ----------
+  function start() {
+    reset(); state = 'play';
+    $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true;
+  }
+  function gameOver() {
+    state = 'over';
+    const s = score(), isBest = s > best;
+    if (isBest) { best = s; try { localStorage.setItem('race-best', String(best)); } catch (e) {} }
+    $('overTitle').textContent = isBest ? 'สถิติใหม่!' : 'ชนแล้ว!';
+    $('overTxt').textContent = `วิ่งได้ ${dist.toFixed(2)} กม. · เก็บเหรียญ ${coins} · คะแนน ${s.toLocaleString('th-TH')} (สถิติ ${best.toLocaleString('th-TH')})`;
+    $('over').hidden = false; $('againBtn').focus();
+  }
+  function togglePause() {
+    if (state === 'play') { state = 'pause'; $('paused').hidden = false; $('resumeBtn').focus(); }
+    else if (state === 'pause') { state = 'play'; $('paused').hidden = true; }
+  }
+  $('startBtn').onclick = start; $('againBtn').onclick = start;
+  $('resumeBtn').onclick = togglePause; $('pauseBtn').onclick = togglePause;
+  if (best) $('bestTxt').textContent = 'สถิติของคุณ: ' + best.toLocaleString('th-TH') + ' คะแนน';
+  document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') togglePause(); });
+
+  // ---------- input ----------
+  const map = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ' ': 'nitro' };
+  addEventListener('keydown', e => {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { togglePause(); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && (state === 'menu' || state === 'over')) { e.preventDefault(); start(); return; }
+    const k = map[e.key]; if (k) { e.preventDefault(); keys[k] = true; }
+  });
+  addEventListener('keyup', e => { const k = map[e.key]; if (k && k !== 'nitro') keys[k] = false; });
+  document.querySelectorAll('.pad').forEach(b => {
+    const k = b.dataset.k;
+    const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); if (state === 'menu' || state === 'over') start(); };
+    const off = e => { e.preventDefault(); if (k !== 'nitro') keys[k] = false; b.classList.remove('on'); };
+    b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointerleave', off); b.addEventListener('pointercancel', off);
+  });
+  // touch the road: left half / right half steers
+  stage.addEventListener('pointerdown', e => { if (state !== 'play' || e.target !== cv) return; const r = cv.getBoundingClientRect(); keys[(e.clientX - r.left) < r.width / 2 ? 'left' : 'right'] = true; });
+  const release = () => { keys.left = keys.right = false; };
+  stage.addEventListener('pointerup', release); stage.addEventListener('pointercancel', release); stage.addEventListener('pointerleave', release);
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000); last = now;
+    if (state === 'play') update(dt);
+    else if (state === 'menu') { scroll = (scroll + 160 * dt) % 80; trees.forEach(tr => tr.y += 160 * dt); trees = trees.filter(tr => tr.y < H + 40); if (!trees.length || trees[trees.length - 1].y > 30) addTree(-30); t += dt; }
+    draw(); hud();
+    requestAnimationFrame(frame);
+  }
+  addEventListener('resize', layout);
+  layout();
+  for (let y = -40; y < H + 80; y += 70) addTree(y);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
