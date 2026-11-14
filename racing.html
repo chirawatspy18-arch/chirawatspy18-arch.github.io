@@ -37,7 +37,9 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
 .pad{font:inherit;font-size:1.4rem;font-weight:800;height:58px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
 .pad.nitro{background:#fff4cc;border-color:#f3cf5a}
 .pad.on{background:var(--ink);color:#fff}
-@media (hover:hover) and (pointer:fine){.pads{display:none}}
+.stage:focus{outline:none}
+.pad{cursor:pointer}
+.tip{width:100%;max-width:460px;margin:0;text-align:center;font-size:.8rem;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -53,7 +55,7 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
   <div><small>ชีวิต</small><b id="hLives">❤❤❤</b><small id="hNitro">ไนโตร 0</small></div>
 </div>
 
-<div class="stage" id="stage">
+<div class="stage" id="stage" tabindex="0" aria-label="สนามแข่ง">
   <canvas id="c"></canvas>
   <div class="overlay" id="menu">
     <h2>ซิ่งทะลุ<br>ไฮเวย์</h2>
@@ -81,6 +83,7 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
   <button class="pad nitro" data-k="nitro" aria-label="ไนโตร">🔥</button>
   <button class="pad" data-k="right" aria-label="เลี้ยวขวา">▶</button>
 </div>
+<p class="tip">ถ้ากดลูกศรแล้วรถไม่เลี้ยว ให้คลิกที่สนามแข่ง 1 ครั้งก่อน หรือใช้เมาส์กดปุ่ม ◀ ▶ ค้างไว้</p>
 
 <script>
 (() => {
@@ -326,6 +329,9 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
   function start() {
     reset(); state = 'play';
     $('menu').hidden = true; $('over').hidden = true; $('paused').hidden = true;
+    // move keyboard focus off the hidden button onto the game, so arrow keys go to the game
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    stage.focus({ preventScroll: true });
   }
   function gameOver() {
     state = 'over';
@@ -337,7 +343,7 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
   }
   function togglePause() {
     if (state === 'play') { state = 'pause'; $('paused').hidden = false; $('resumeBtn').focus(); }
-    else if (state === 'pause') { state = 'play'; $('paused').hidden = true; }
+    else if (state === 'pause') { state = 'play'; $('paused').hidden = true; if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); stage.focus({ preventScroll: true }); }
   }
   $('startBtn').onclick = start; $('againBtn').onclick = start;
   $('resumeBtn').onclick = togglePause; $('pauseBtn').onclick = togglePause;
@@ -345,13 +351,25 @@ kbd{background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play') togglePause(); });
 
   // ---------- input ----------
-  const map = { ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right', ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down', ' ': 'nitro' };
-  addEventListener('keydown', e => {
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { togglePause(); return; }
-    if ((e.key === 'Enter' || e.key === ' ') && (state === 'menu' || state === 'over')) { e.preventDefault(); start(); return; }
-    const k = map[e.key]; if (k) { e.preventDefault(); keys[k] = true; }
-  });
-  addEventListener('keyup', e => { const k = map[e.key]; if (k && k !== 'nitro') keys[k] = false; });
+  // e.code = physical key, so WASD also works with the Thai keyboard layout
+  const map = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'nitro',
+                Left: 'left', Right: 'right', Up: 'up', Down: 'down' };
+  const keyOf = e => map[e.code] || map[e.key] || (e.key === ' ' ? 'nitro' : null);
+  function onKeyDown(e) {
+    if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'Escape') { togglePause(); return; }
+    if ((e.key === 'Enter' || e.code === 'Space') && (state === 'menu' || state === 'over')) { e.preventDefault(); start(); return; }
+    const k = keyOf(e); if (!k) return;
+    e.preventDefault(); e.stopPropagation();
+    if (state === 'pause' && k !== 'nitro') togglePause();
+    // a quick tap still moves the car noticeably
+    if (!keys[k] && state === 'play') { if (k === 'left') car.vx -= 260; if (k === 'right') car.vx += 260; }
+    keys[k] = true; pad(k, true);
+  }
+  function onKeyUp(e) { const k = keyOf(e); if (!k) return; pad(k, false); if (k !== 'nitro') keys[k] = false; }
+  window.addEventListener('keydown', onKeyDown, true);
+  window.addEventListener('keyup', onKeyUp, true);
+  window.addEventListener('blur', () => { keys.left = keys.right = keys.up = keys.down = false; });
+  function pad(k, on) { const b = document.querySelector('.pad[data-k="' + k + '"]'); if (b) b.classList.toggle('on', on); }
   document.querySelectorAll('.pad').forEach(b => {
     const k = b.dataset.k;
     const on = e => { e.preventDefault(); keys[k] = true; b.classList.add('on'); if (state === 'menu' || state === 'over') start(); };
