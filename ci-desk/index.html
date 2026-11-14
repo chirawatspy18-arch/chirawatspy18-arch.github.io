@@ -305,6 +305,9 @@ a.hcard:hover, button.hcard:hover { transform: translateY(-3px); box-shadow: 0 1
 #v-parts table td, #v-parts table td.sub, #v-parts table td .sub { color: #0b1424; font-weight: 500; font-size: 14px; }
 #v-parts table td b, #v-parts table td .num { color: #000000; font-weight: 700; }
 #v-parts > .row .sub, #v-parts .sub { color: #2b3a4f; }
+/* หลังบ้าน hidden: no tab, no shortcuts; the ออกจากระบบ button stays in the top bar */
+.tab[data-view="account"], [data-go="account"] { display: none !important; }
+#whoMe { pointer-events: none; cursor: default; }
 </style>
 
 <div class="top">
