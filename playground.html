@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>สนามเขียนโค้ด</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: toolbar on top, editor (left) + live preview/console (right); stacks on phones */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#18222d; --muted:#5d6b78; --line:#d5dce3;
+  --accent:#0f7b6c; --accent-ink:#ffffff; --code-bg:#f7f9fb; --err:#c0392b; --warn:#a86a00;
+  --font-ui:"IBM Plex Sans Thai",system-ui,sans-serif;
+  --font-code:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161b; --panel:#182028; --ink:#e3e9ee; --muted:#93a1ad; --line:#2a3540;
+  --accent:#35c2a8; --accent-ink:#0b1a17; --code-bg:#121a21; --err:#ff7b6b; --warn:#e8b04a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161b; --panel:#182028; --ink:#e3e9ee; --muted:#93a1ad; --line:#2a3540;
+  --accent:#35c2a8; --accent-ink:#0b1a17; --code-bg:#121a21; --err:#ff7b6b; --warn:#e8b04a; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:14px;box-sizing:border-box;display:flex;flex-direction:column;gap:12px}
+*{box-sizing:border-box}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+h1{font-size:1.25rem;font-weight:600;margin:0;text-wrap:balance}
+h1 small{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:6px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+button,select{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover,select:hover{border-color:var(--accent)}
+button:focus-visible,select:focus-visible,textarea:focus-visible,.tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+label.chk{display:flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted);cursor:pointer}
+main{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{border:0;border-radius:0;background:transparent;padding:9px 16px;font-family:var(--font-code);font-size:.82rem;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:500}
+.tabs .spacer{flex:1}
+.tabs .hint{align-self:center;padding-right:12px;font-size:.78rem;color:var(--muted)}
+textarea{flex:1;min-height:0;width:100%;resize:none;border:0;margin:0;padding:14px;background:var(--code-bg);color:var(--ink);
+  font-family:var(--font-code);font-size:13.5px;line-height:1.6;tab-size:2;white-space:pre;overflow:auto}
+textarea:focus{outline:none}
+.preview-head{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+iframe{flex:1;min-height:0;width:100%;border:0;background:#fff}
+.console{height:30%;min-height:90px;border-top:1px solid var(--line);display:flex;flex-direction:column}
+.console-head{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;font-size:.8rem;color:var(--muted);border-bottom:1px solid var(--line)}
+.console-head button{padding:2px 8px;font-size:.78rem}
+#log{flex:1;overflow:auto;margin:0;padding:8px 12px;font-family:var(--font-code);font-size:12.5px;line-height:1.55;background:var(--code-bg)}
+#log div{white-space:pre-wrap;word-break:break-word;border-bottom:1px dashed var(--line);padding:2px 0}
+#log .error{color:var(--err)} #log .warn{color:var(--warn)}
+#log .empty{color:var(--muted);border:0}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:.9rem}
+@media (max-width:820px){
+  html,body{height:auto}
+  main{grid-template-columns:1fr}
+  .pane{height:60vh}
+  .tools{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<header>
+  <h1>สนามเขียนโค้ด <small>HTML · CSS · JavaScript</small></h1>
+  <div class="tools">
+    <select id="sample" aria-label="เลือกตัวอย่าง">
+      <option value="shop">ตัวอย่าง: หน้าร้านเล็ก ๆ</option>
+      <option value="counter">ตัวอย่าง: ปุ่มนับเลข</option>
+      <option value="todo">ตัวอย่าง: รายการสิ่งที่ต้องทำ</option>
+      <option value="blank">หน้าว่าง</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="auto" checked> รันอัตโนมัติ</label>
+    <button id="copy">คัดลอกเป็นไฟล์เดียว</button>
+    <button id="run" class="primary">▶ รัน (Ctrl+Enter)</button>
+  </div>
+</header>
+
+<main>
+  <section class="pane" aria-label="ตัวแก้ไขโค้ด">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-lang="html" aria-selected="true">index.html</button>
+      <button class="tab" role="tab" data-lang="css" aria-selected="false">style.css</button>
+      <button class="tab" role="tab" data-lang="js" aria-selected="false">script.js</button>
+      <span class="spacer"></span><span class="hint">บันทึกในเบราว์เซอร์นี้อัตโนมัติ</span>
+    </div>
+    <textarea id="editor" spellcheck="false" autocomplete="off" aria-label="โค้ด"></textarea>
+  </section>
+
+  <section class="pane" aria-label="ผลลัพธ์">
+    <div class="preview-head"><span class="dot"></span>ผลลัพธ์</div>
+    <iframe id="out" sandbox="allow-scripts allow-modals" title="ผลลัพธ์"></iframe>
+    <div class="console">
+      <div class="console-head"><span>Console</span><button id="clear">ล้าง</button></div>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const SAMPLES = {
+  shop:{
+    html:`</head>
+<body>
+<header>
+  <h1>ร้านกาแฟบ้านสวน</h1>
+  <p>เปิดทุกวัน 07:00 – 17:00</p>
+</header>
+<main>
+  <div class="menu" id="menu"></div>
+  <p class="total">รวม: <b id="total">0</b> บาท</p>
+</main>`,
+    css:`body { font-family: sans-serif; margin: 0; background: #faf7f2; color: #2b2118; }
+header { background: #6b4226; color: white; padding: 24px; }
+header h1 { margin: 0 0 4px; }
+main { padding: 20px; }
+.menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.item { background: white; border: 1px solid #e3d8cb; border-radius: 10px; padding: 14px; cursor: pointer; }
+.item:hover { border-color: #6b4226; }
+.item b { display: block; font-size: 1.1rem; }
+.total { font-size: 1.2rem; }`,
+    js:`const items = [
+  { name: "เอสเพรสโซ", price: 45 },
+  { name: "ลาเต้เย็น", price: 60 },
+  { name: "ชาไทย", price: 50 },
+  { name: "ครัวซองต์", price: 55 },
+];
+let total = 0;
+const menu = document.getElementById("menu");
+items.forEach(item => {
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = "<b>" + item.name + "</b>" + item.price + " บาท";
+  el.onclick = () => {
+    total += item.price;
+    document.getElementById("total").textContent = total;
+    console.log("เพิ่ม", item.name, "รวม", total);
+  };
+  menu.appendChild(el);
+});
+console.log("คลิกเมนูเพื่อเพิ่มลงตะกร้า");`
+  },
+  counter:{
+    html:`<div class="box">
+  <h1 id="num">0</h1>
+  <button id="minus">−</button>
+  <button id="plus">+</button>
+</div>`,
+    css:`body { display: grid; place-items: center; height: 100vh; margin: 0; font-family: sans-serif; background: #eef4ff; }
+.box { text-align: center; }
+h1 { font-size: 4rem; margin: 0 0 12px; }
+button { font-size: 1.5rem; width: 60px; height: 60px; border-radius: 50%; border: 0; background: #2f6fed; color: white; cursor: pointer; }`,
+    js:`let n = 0;
+const num = document.getElementById("num");
+document.getElementById("plus").onclick = () => { n++; num.textContent = n; console.log("ค่า =", n); };
+document.getElementById("minus").onclick = () => { n--; num.textContent = n; console.log("ค่า =", n); };`
+  },
+  todo:{
+    html:`<h2>สิ่งที่ต้องทำวันนี้</h2>
+<form id="f"><input id="t" placeholder="พิมพ์งาน แล้วกด Enter"><button>เพิ่ม</button></form>
+<ul id="list"></ul>`,
+    css:`body { font-family: sans-serif; max-width: 420px; margin: 24px auto; padding: 0 16px; }
+form { display: flex; gap: 8px; }
+input { flex: 1; padding: 8px; }
+li { padding: 6px 0; cursor: pointer; }
+li.done { text-decoration: line-through; color: #999; }`,
+    js:`const list = document.getElementById("list");
+document.getElementById("f").onsubmit = e => {
+  e.preventDefault();
+  const t = document.getElementById("t");
+  if (!t.value.trim()) return;
+  const li = document.createElement("li");
+  li.textContent = t.value;
+  li.onclick = () => li.classList.toggle("done");
+  list.appendChild(li);
+  console.log("เพิ่มงาน:", t.value);
+  t.value = "";
+};`
+  },
+  blank:{ html:`<h1>สวัสดี!</h1>`, css:`body { font-family: sans-serif; }`, js:`console.log("เริ่มเขียนโค้ดได้เลย");` }
+};
+
+const KEY = "playground-v1";
+let state, lang = "html";
+try { state = JSON.parse(localStorage.getItem(KEY)); } catch(e) {}
+if (!state || typeof state.html !== "string") state = {...SAMPLES.shop, sample:"shop"};
+
+const $ = id => document.getElementById(id);
+const editor = $("editor"), out = $("out"), log = $("log");
+$("sample").value = state.sample || "shop";
+editor.value = state[lang];
+
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+const BRIDGE = `<script>(function(){
+  function send(type,args){try{parent.postMessage({__pg:1,type:type,msg:Array.from(args).map(function(a){
+    if(a instanceof Error)return a.message;if(typeof a==="object"){try{return JSON.stringify(a)}catch(e){return String(a)}}return String(a)}).join(" ")},"*")}catch(e){}}
+  ["log","info","warn","error"].forEach(function(k){var o=console[k];console[k]=function(){send(k,arguments);o.apply(console,arguments)}});
+  window.onerror=function(m,s,l){send("error",["บรรทัด "+l+": "+m])};
+})();<\/script>`;
+
+function build(withBridge){
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+${withBridge ? BRIDGE : ""}<style>
+${state.css}
+</style></head><body>
+${state.html}
+<script>
+${state.js.replace(/<\/script>/gi,"<\\/script>")}
+<\/script></body></html>`;
+}
+
+function run(){
+  log.innerHTML = "";
+  out.srcdoc = build(true);
+  setTimeout(()=>{ if(!log.children.length) log.innerHTML = '<div class="empty">ยังไม่มีข้อความ — ลองใช้ console.log()</div>'; }, 400);
+}
+
+window.addEventListener("message", e => {
+  if (e.source !== out.contentWindow || !e.data || !e.data.__pg) return;
+  const empty = log.querySelector(".empty"); if (empty) empty.remove();
+  const d = document.createElement("div");
+  d.className = e.data.type; d.textContent = (e.data.type==="error"?"✕ ":e.data.type==="warn"?"! ":"› ") + e.data.msg;
+  log.appendChild(d); log.scrollTop = log.scrollHeight;
+});
+
+let timer;
+editor.addEventListener("input", () => {
+  state[lang] = editor.value; save();
+  if ($("auto").checked){ clearTimeout(timer); timer = setTimeout(run, 600); }
+});
+editor.addEventListener("keydown", e => {
+  if (e.key === "Tab" && !e.shiftKey){
+    e.preventDefault();
+    const s = editor.selectionStart, en = editor.selectionEnd;
+    editor.setRangeText("  ", s, en, "end");
+    editor.dispatchEvent(new Event("input"));
+  }
+});
+document.addEventListener("keydown", e => { if ((e.ctrlKey||e.metaKey) && e.key === "Enter"){ e.preventDefault(); run(); } });
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x===t));
+  lang = t.dataset.lang; editor.value = state[lang]; editor.focus();
+}));
+
+$("sample").addEventListener("change", e => {
+  state = {...SAMPLES[e.target.value], sample:e.target.value};
+  editor.value = state[lang]; save(); run();
+});
+$("run").onclick = run;
+$("clear").onclick = () => { log.innerHTML = ""; };
+
+function toast(msg){
+  const t = document.createElement("div"); t.className="toast"; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 2200);
+}
+$("copy").onclick = async () => {
+  const text = build(false);
+  try { await navigator.clipboard.writeText(text); toast("คัดลอกแล้ว — วางเป็นไฟล์ index.html ได้เลย"); }
+  catch(err){
+    lang = "html"; editor.value = text; editor.select();
+    toast("คัดลอกอัตโนมัติไม่ได้ เลือกโค้ดไว้ให้แล้ว กด Ctrl+C");
+    editor.value = state.html;
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("คัดลอกแล้ว"); } catch(e) {}
+    ta.remove();
+  }
+};
+
+run();
+</script>
+
+</body>
+</html>
